@@ -9,6 +9,8 @@ from copy import copy, deepcopy
 import random
 from concurrent import futures
 import logging
+import atexit
+import weakref
 
 import numpy as np
 from glm import ivec3
@@ -76,16 +78,16 @@ class Editor:
         self._worldSlice: Optional[WorldSlice] = None
         self._worldSliceDecay: Optional[np.ndarray] = None
 
+        ref = weakref.ref(self)
+
+        # Use a lambda to allow unregistering only one instance
+        self._cleanup = lambda: cleanup_at_exit(ref)
+        atexit.register(self._cleanup)
+
 
     def __del__(self):
         """Cleans up this Editor instance"""
-        # awaits any pending buffer flush futures and shuts down the buffer flush executor
-        self.multithreading = False
-        # Flush any remaining blocks in the buffer.
-        # This is purposefully done *after* disabling multithreading! This __del__ may be called at
-        # interpreter shutdown, and it appears that scheduling a new future at that point fails with
-        # "RuntimeError: cannot schedule new futures after shutdown" even if the executor has not
-        # actually shut down yet. For safety, the last buffer flush must be done on the main thread.
+        atexit.unregister(self._cleanup)
         self.flushBuffer()
 
 
@@ -594,3 +596,10 @@ class Editor:
             yield
         finally:
             self.transform = originalTransform
+
+# Flush buffers if the system is shutting down.
+# Do this via an atexit handler instead of the destructor because it needs
+# to run before necessary modules are torns down.
+def cleanup_at_exit(ref: weakref.ref):
+    if obj := ref():
+        obj.flushBuffer()
