@@ -540,6 +540,11 @@ class Rect:
     def __repr__(self) -> str:
         return f"Rect({tuple(self._offset)}, {tuple(self._size)})"
 
+    def __iter__(self) -> ivec2:
+        dx, dy = self.size.x, self.size.y
+        for x, y in itertools.product(range(dx), range(dy)):
+            yield self.begin + ivec2(x, y)
+
     @property
     def offset(self) -> ivec2:
         """This Rect's offset"""
@@ -721,6 +726,11 @@ class Box:
 
     def __repr__(self) -> str:
         return f"Box({tuple(self._offset)}, {tuple(self._size)})"
+
+    def __iter__(self) -> ivec3:
+        dx, dy, dz = self.size.x, self.size.y, self.size.z
+        for x, y in itertools.product(range(dx), range(dy), range(dz)):
+            yield self.begin + ivec3(x, y)
 
     @property
     def offset(self) -> ivec3:
